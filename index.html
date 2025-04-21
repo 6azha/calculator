@@ -1,148 +1,209 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Mini Calculator</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<meta charset="UTF-8">
+<title>Mini Calculator Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@12.4.0/lib/browser/math.min.js"></script>
 
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-
-  <style>
-    :root {
-      /* fallback цвета, дальше их перепишем из themeParams */
-      --bg: #f9f9f9;
-      --fg: #222;
-      --card: #fff;
-      --accent: #2a9ef4;
-      --accent-text: #fff;
-    }
-
-    * { box-sizing: border-box; }
-
-    html,body {
-      height: 100%;
-      margin: 0;
-      font-family: "Inter", sans-serif;
-      background: var(--bg);
-      color: var(--fg);
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .app {
-      max-width: 380px;
-      margin: auto;
-      padding: 24px 16px 80px; /* снизу запас под системную панель */
-    }
-
-    h1 {
-      text-align: center;
-      margin: 0 0 24px;
-      font-size: 24px;
-      font-weight: 600;
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 16px;
-      padding: 24px 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,.08);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 16px;
-      border: 1px solid #d7d7d7;
-      border-radius: 12px;
-      background: #fff;
-      color: var(--fg);
-      appearance: none;
-    }
-
-    button {
-      padding: 14px;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      border-radius: 12px;
-      background: var(--accent);
-      color: var(--accent-text);
-      cursor: pointer;
-      transition: transform .12s ease;
-    }
-    button:active { transform: scale(.97); }
-
-    #result {
-      margin-top: 8px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 600;
-      min-height: 1.2em;
-    }
-  </style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f9f9f9;--fg:#222;--card:#fff;
+  --accent:#2a9ef4;--accent-txt:#fff;
+  --key:#ececec;--key-fg:#111;--key-op:#d9eaff;
+  --radius:14px;--gap:8px
+}
+*{box-sizing:border-box;font-family:Inter,sans-serif}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);}
+.app{max-width:400px;margin:auto;padding:16px 12px 96px}
+.display{background:var(--card);border-radius:var(--radius);
+        padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+#expr,#result{margin:0;word-wrap:anywhere}
+#expr{min-height:1.3em;font-size:18px;opacity:.65}
+.output{display:flex;align-items:center;gap:6px}
+#result{font-size:28px;font-weight:600;flex:1}
+.copy{cursor:pointer;font-size:18px;user-select:none}
+.mem-bar{display:flex;gap:var(--gap);margin:14px 0}
+.mem-bar button{flex:1}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--gap)}
+.key{
+  padding:14px 0;font-size:18px;font-weight:600;border:none;
+  border-radius:var(--radius);cursor:pointer;background:var(--key);color:var(--key-fg)}
+.key.op{background:var(--key-op)}
+.key.equal{grid-column:span 2;background:var(--accent);color:var(--accent-txt)}
+.key:active{transform:scale(.97)}
+.hist{margin-top:16px;max-height:160px;overflow:auto;font-size:14px}
+.hist-item{padding:6px 0;border-bottom:1px solid #ddd;cursor:pointer}
+.hist-item:last-child{border:none}
+@media (max-width:330px){#result{font-size:22px}.key{padding:10px 0}}
+</style>
 </head>
-
 <body>
-  <div class="app">
-    <h1>Калькулятор</h1>
-
-    <div class="card">
-      <input type="number" id="num1" placeholder="Первое число" />
-      <input type="number" id="num2" placeholder="Второе число" />
-
-      <select id="operation">
-        <option value="add">➕ Сложение</option>
-        <option value="subtract">➖ Вычитание</option>
-        <option value="multiply">✖️ Умножение</option>
-        <option value="divide">➗ Деление</option>
-      </select>
-
-      <button id="calcBtn">Посчитать</button>
-      <div id="result"></div>
+<div class="app">
+  <div class="display">
+    <p id="expr"></p>
+    <div class="output">
+      <p id="result"></p>
+      <span class="copy" title="Скопировать">📋</span>
+    </div>
+    <div class="mem-bar">
+      <button class="key" data-fn="MC">MC</button>
+      <button class="key" data-fn="MR">MR</button>
+      <button class="key" data-fn="M+">M+</button>
+      <button class="key" data-fn="M-">M-</button>
     </div>
   </div>
 
-  <script>
-    const tg = Telegram.WebApp;
-    tg.ready();
+  <div class="grid" id="keys">
+    <!-- первая строка -->
+    <button class="key op" data-val="sin(">sin</button>
+    <button class="key op" data-val="cos(">cos</button>
+    <button class="key op" data-val="tan(">tan</button>
+    <button class="key op" data-val="(">(</button>
+    <button class="key op" data-val=")">)</button>
 
-    // адаптируемся к теме Telegram
-    function applyTheme(tp = {}) {
-      const css = document.documentElement.style;
-      css.setProperty("--bg", tp.bg_color || "#f9f9f9");
-      css.setProperty("--fg", tp.text_color || "#222");
-      css.setProperty("--card", tp.secondary_bg_color || "#ffffff");
-      css.setProperty("--accent", tp.button_color || "#2a9ef4");
-      css.setProperty("--accent-text", tp.button_text_color || "#ffffff");
+    <!-- вторая -->
+    <button class="key op" data-val="√(">√x</button>
+    <button class="key op" data-val="^2">x²</button>
+    <button class="key op" data-val="^">xʸ</button>
+    <button class="key op" data-val="1/(">1/x</button>
+    <button class="key op" data-val="%">%</button>
+
+    <!-- третья -->
+    <button class="key" data-val="7">7</button>
+    <button class="key" data-val="8">8</button>
+    <button class="key" data-val="9">9</button>
+    <button class="key op" data-val="/">÷</button>
+    <button class="key op" data-val="del">⌫</button>
+
+    <!-- четвёртая -->
+    <button class="key" data-val="4">4</button>
+    <button class="key" data-val="5">5</button>
+    <button class="key" data-val="6">6</button>
+    <button class="key op" data-val="*">×</button>
+    <button class="key op" data-val="clear">C</button>
+
+    <!-- пятая -->
+    <button class="key" data-val="1">1</button>
+    <button class="key" data-val="2">2</button>
+    <button class="key" data-val="3">3</button>
+    <button class="key op" data-val="-">−</button>
+    <button class="key op" data-val="±">±</button>
+
+    <!-- шестая -->
+    <button class="key" data-val="0">0</button>
+    <button class="key" data-val=".">.</button>
+    <button class="key equal" data-val="=">=</button>
+    <button class="key op" data-val="+">+</button>
+  </div>
+
+  <div class="hist" id="hist"></div>
+</div>
+
+<script>
+const tg = Telegram.WebApp; tg.ready();
+const css = s => document.documentElement.style.
+setProperty(...s);
+function theme(tp){
+  css(['--bg',tp.bg_color??'#f9f9f9']);
+  css(['--fg',tp.text_color??'#222']);
+  css(['--card',tp.secondary_bg_color??'#fff']);
+  css(['--accent',tp.button_color??'#2a9ef4']);
+  css(['--accent-txt',tp.button_text_color??'#fff']);
+  css(['--key',tp.hint_color??'#ececec']);
+  css(['--key-op',tp.destructive_text_color??'#d9eaff']);
+}
+theme(tg.themeParams); tg.onEvent('themeChanged',()=>theme(tg.themeParams));
+
+const exprEl = document.getElementById('expr');
+const resEl  = document.getElementById('result');
+const histEl = document.getElementById('hist');
+let expr = '', memory = 0, deg = true;
+
+const hist = JSON.parse(localStorage.calcHist||'[]');
+function renderHist(){
+  histEl.innerHTML = hist.map(h=>`<div class="hist-item">${h}</div>`).join('');
+}
+renderHist();
+
+histEl.onclick=e=>{
+  if(e.target.classList.contains('hist-item')){
+    expr = e.target.textContent;
+    exprEl.textContent = expr;
+  }
+};
+
+const btn = tg.MainButton;
+btn.hide();
+
+function updateDisplay(){
+  exprEl.textContent = expr;
+}
+
+function pushHist(item){
+  hist.unshift(item); if(hist.length>10) hist.pop();
+  localStorage.calcHist = JSON.stringify(hist);
+  renderHist();
+}
+
+document.getElementById('keys').onclick = e=>{
+  if(!e.target.dataset.val) return;
+  const v = e.target.dataset.val;
+
+  switch(v){
+    case 'del': expr = expr.slice(0,-1); break;
+    case 'clear': expr = ''; resEl.textContent=''; btn.hide(); break;
+    case '=': calc(); return;
+    case '±': expr = expr ? (-1*${expr}) : ''; break;
+    default: expr += v;
+  }
+  updateDisplay();
+};
+
+function calc(){
+  if(!expr) return;
+  try{
+    const scope = {π:Math.PI};
+    const angle = deg?Math.PI/180:1;
+    const custom = {
+      sin:x=>Math.sin(x*angle),
+      cos:x=>Math.cos(x*angle),
+      tan:x=>Math.tan(x*angle),
+      √:x=>Math.sqrt(x)
+    };
+    const res = math.evaluate(expr, {...custom,...scope});
+    resEl.textContent = res;
+    pushHist(`${expr} = ${res}`);
+    expr = '';
+    updateDisplay();
+    // Telegram main button
+    btn.setText(`Отправить: ${res}`);
+    btn.show();
+    btn.onClick(()=>tg.sendData(String(res)));
+  }catch(err){
+    resEl.textContent = 'Ошибка';
+  }
+}
+
+document.querySelector('.copy').onclick=()=>{
+  if(!resEl.textContent) return;
+  navigator.clipboard.writeText(resEl.textContent);
+  tg.showPopup({message:'Скопировано!'});
+};
+
+// memory buttons
+document.querySelectorAll('.mem-bar .key').forEach(b=>{
+  b.onclick=()=>{
+    switch(b.dataset.fn){
+      case 'MC': memory=0; break;
+      case 'MR': expr+=memory; updateDisplay(); break;
+      case 'M+': memory+=Number(resEl.textContent)||0;break;
+      case 'M-': memory-=Number(resEl.textContent)||0;break;
     }
-    applyTheme(tg.themeParams);
-    tg.onEvent("themeChanged", () => applyTheme(tg.themeParams));
-
-    // калькулятор
-    document.getElementById("calcBtn").addEventListener("click", () => {
-      const n1 = parseFloat(num1.value);
-      const n2 = parseFloat(num2.value);
-      const op = operation.value;
-      let res;
-
-      if (Number.isNaN(n1) || Number.isNaN(n2)) {
-        res = "Введите корректные числа";
-      } else {
-        switch (op) {
-          case "add":       res = n1 + n2; break;
-          case "subtract":  res = n1 - n2; break;
-          case "multiply":  res = n1 * n2; break;
-          case "divide":    res = n2 !== 0 ? n1 / n2 : "Ошибка: деление на 0"; break;
-          default:          res = "Неизвестная операция";
-        }
-      }
-      result.textContent = Результат: ${res};
-    });
-  </script>
+  };
+});
+</script>
 </body>
 </html>
